@@ -269,6 +269,11 @@
 			
 			private function handleMouseModeChange(event:Event = null):void
 			{
+				if(!panModeButton)
+				{
+					callLater(handleMouseModeChange);
+					return;
+				}
 				var defaultMode:String;
 				if (event)
 				{
@@ -524,6 +529,11 @@
 			
 			public function handleLocationChange():void 
 			{
+				if(!parent)
+				{
+					callLater(clearMapcontroLocations);
+					return;
+				}
 				clearMapcontroLocations();
 				switch (maptoolsLocation.value)
 				{
@@ -566,6 +576,11 @@
 			
 			public function handleSizeFactorChange():void 
 			{
+				if(!parent)
+				{
+					callLater(handleSizeFactorChange);
+					return;
+				}
 				mapControls.scaleX = sizeFactorOfMapControls.value;
 				mapControls.scaleY = sizeFactorOfMapControls.value;
 			}
