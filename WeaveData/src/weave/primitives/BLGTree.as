@@ -66,7 +66,14 @@ package weave.primitives
 
 			// create a new node object to hold these values
 			var newNode:BLGNode = new BLGNode(index, importance, x, y);
-			
+			_insert(newNode);
+		}
+		
+		/**
+		 * @private
+		 */
+		private function _insert(newNode:BLGNode):void
+		{
 			// base case: tree is empty, save as root node
 			if (rootNode == null)
 			{
@@ -387,7 +394,7 @@ package weave.primitives
 		 * @param splitIndex An index to split the tree at.
 		 * @return A new BLGTree containing all the points whose index >= splitIndex.
 		 */
-		public function splitAtIndex(splitIndex:int):BLGTree
+		public function _splitAtIndex(splitIndex:int):BLGTree
 		{
 			var newTree:BLGTree = new BLGTree();
 			// get all points in this tree
@@ -404,6 +411,98 @@ package weave.primitives
 			// clear references to previous nodes
 			traversalVector.length = 0;
 			previousTraversalMinImportance = -1;
+			// return new tree
+			return newTree;
+		}
+		
+		private static function assertTrue(bool:Boolean):void
+		{
+			if (!bool)
+				throw new Error("Assertion failed");
+		}
+		
+		private static function assertValid(node:BLGNode, assertNode:Function):void
+		{
+			if (!node)
+				return;
+			
+			assertNode(node);
+			if (node.left)
+			{
+				assertTrue(node.left.index < node.index);
+				assertValid(node.left, assertNode);
+			}
+			if (node.right)
+			{
+				assertTrue(node.index < node.right.index);
+				assertValid(node.right, assertNode);
+			}
+		}
+		
+		/**
+		 * @param splitIndex An index to split the tree at.
+		 * @return A new BLGTree containing all the points whose index >= splitIndex.
+		 */
+		public function splitAtIndex(splitIndex:int):BLGTree
+		{
+			// reset these values so previous traversal won't be reused
+			previousTraversalMinImportance = -1;
+			traversalVector.length = 0;
+			
+			// create new tree for points whose index >= splitIndex
+			var newTree:BLGTree = new BLGTree();
+			
+			var checkAgain:Boolean = true;
+			while (checkAgain)
+			{
+				checkAgain = false;
+				
+				// traverse down right side of this tree until we find a subtree that should go to the new tree
+				var parent:BLGNode = null;
+				var subtree:BLGNode = this.rootNode;
+				while (subtree && subtree.index < splitIndex)
+				{
+					parent = subtree;
+					subtree = subtree.right;
+				}
+				if (subtree)
+				{
+					// remove subtree
+					if (parent)
+						parent.right = null;
+					else
+						this.rootNode = null;
+					
+					// add to new tree
+					newTree._insert(subtree);
+					checkAgain = true;
+				}
+				
+				// traverse down left side of new tree until we find a subtree that should go back to the old tree
+				parent = null;
+				subtree = newTree.rootNode;
+				while (subtree && subtree.index >= splitIndex)
+				{
+					parent = subtree;
+					subtree = subtree.left;
+				}
+				if (subtree)
+				{
+					// remove subtree
+					if (parent)
+						parent.left = null;
+					else
+						newTree.rootNode = null;
+					
+					// add to old tree
+					this._insert(subtree);
+					checkAgain = true;
+				}
+			}
+			
+			assertValid(this.rootNode, function(node:BLGNode):void{ assertTrue(node.index < splitIndex); });
+			assertValid(newTree.rootNode, function(node:BLGNode):void{ assertTrue(node.index >= splitIndex); });
+			
 			// return new tree
 			return newTree;
 		}

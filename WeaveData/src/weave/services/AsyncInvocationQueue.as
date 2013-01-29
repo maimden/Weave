@@ -33,7 +33,7 @@ package weave.services
 	 */
 	public class AsyncInvocationQueue
 	{
-		public static var debug:Boolean = false;
+		public static var debug:Boolean = true;
 		
 		public function AsyncInvocationQueue()
 		{
