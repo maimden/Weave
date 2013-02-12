@@ -634,14 +634,21 @@ package weave.compiler
 					continue;
 				}
 				
-				// verify that lhs.compiledMethod.name is 'operator.'
-				var lhsMethod:CompiledConstant = lhs.compiledMethod as CompiledConstant;
-				if (lhsMethod && lhsMethod.name == OPERATOR_PREFIX + '.' + OPERATOR_SUFFIX)
+				if (tokens[i] == ':')
 				{
-					// switch to the assignment operator
-					lhs.compiledParams.push(tokens[i + 1]);
-					tokens.splice(i - 1, 3, compileOperator(tokens[i], lhs.compiledParams));
-					continue;
+					tokens.splice(i - 1, 3, new CompiledProperty(tokens[i - 1], tokens[i + 1]));
+				}
+				else
+				{
+					// verify that lhs.compiledMethod.name is 'operator.'
+					var lhsMethod:CompiledConstant = lhs.compiledMethod as CompiledConstant;
+					if (lhsMethod && lhsMethod.name == OPERATOR_PREFIX + '.' + OPERATOR_SUFFIX)
+					{
+						// switch to the assignment operator
+						lhs.compiledParams.push(tokens[i + 1]);
+						tokens.splice(i - 1, 3, compileOperator(tokens[i], lhs.compiledParams));
+						continue;
+					}
 				}
 				
 				throw new Error("Invalid left-hand-side of '" + tokens[i] + "'");
