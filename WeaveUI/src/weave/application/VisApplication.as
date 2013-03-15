@@ -55,11 +55,11 @@ package weave.application
 	import weave.Weave;
 	import weave.WeaveProperties;
 	import weave.api.WeaveAPI;
+	import weave.api.getCallbackCollection;
+	import weave.api.reportError;
 	import weave.api.core.ILinkableObject;
 	import weave.api.data.ICSVExportable;
 	import weave.api.data.IDataSource;
-	import weave.api.getCallbackCollection;
-	import weave.api.reportError;
 	import weave.api.ui.IVisTool;
 	import weave.compiler.StandardLib;
 	import weave.core.ExternalSessionStateInterface;
@@ -536,6 +536,8 @@ package weave.application
 		}
 		
 		private var _useWeaveExtensionWhenSavingToServer:Boolean;
+		private var _firstTimeSaveToServer:Boolean=true;
+		private var _previousFileNameStore:String;
 		private function saveSessionStateToServer(useWeaveExtension:Boolean):void
 		{
 			if (adminService == null)
@@ -548,6 +550,8 @@ package weave.application
 			
 			var fileName:String = getFlashVarFile().split("/").pop();
 			fileName = Weave.fixWeaveFileName(fileName, _useWeaveExtensionWhenSavingToServer);
+			if (!_firstTimeSaveToServer)
+				fileName=_previousFileNameStore;
 			
 			var fileSaveDialogBox:AlertTextBox;
 			fileSaveDialogBox = PopUpManager.createPopUp(this,AlertTextBox) as AlertTextBox;
@@ -562,8 +566,10 @@ package weave.application
 		{
 			if (event.confirm)
 			{
+				_firstTimeSaveToServer=false;
 				var fileName:String = event.textInput;
 				fileName = Weave.fixWeaveFileName(fileName, _useWeaveExtensionWhenSavingToServer);
+				_previousFileNameStore = fileName;
 				
 				var content:ByteArray;
 				if (_useWeaveExtensionWhenSavingToServer)
@@ -660,7 +666,10 @@ package weave.application
 			if (!historySlider)
 			{
 				historySlider = EditorManager.getNewEditor(Weave.history) as UIComponent;
-				this.addChildAt(historySlider, this.getChildIndex(visDesktop));
+				if (historySlider)
+					this.addChildAt(historySlider, this.getChildIndex(visDesktop));
+				else
+					reportError("Unable to get editor for SessionStateLog");
 			}
 			
 			DraggablePanel.adminMode = adminService || getFlashVarEditable();
@@ -682,12 +691,14 @@ package weave.application
 				}
 				
 				// always show menu bar when admin service is present
-				historySlider.alpha = _weaveMenu.alpha = Weave.properties.enableMenuBar.value ? 1.0 : 0.3;
+				if (historySlider)
+					historySlider.alpha = _weaveMenu.alpha = Weave.properties.enableMenuBar.value ? 1.0 : 0.3;
 			}
 			// otherwise there is no menu bar, (which normally includes the oiclogopane, so add one to replace it)
 			else
 			{
-				historySlider.visible = historySlider.includeInLayout = false;
+				if (historySlider)
+					historySlider.visible = historySlider.includeInLayout = false;
 				try
 				{
 		   			if (_weaveMenu && this == _weaveMenu.parent)
@@ -861,9 +872,9 @@ package weave.application
 							{
 								var collabTool:CollaborationTool = CollaborationTool.instance;
 								if (collabTool && collabTool.collabService.isConnected)
-									return lang("Open collaboration window")
+									return lang("Open collaboration window");
 								else
-									return lang("Connect to collaboration server (Beta)...")
+									return lang("Connect to collaboration server (Beta)...");
 							},
 							DraggablePanel.openStaticInstance,
 							[CollaborationTool]
@@ -886,7 +897,8 @@ package weave.application
 				
 				showHistorySlider = Weave.properties.showSessionHistoryControls.value;
 			}
-			historySlider.visible = historySlider.includeInLayout = showHistorySlider;
+			if (historySlider)
+				historySlider.visible = historySlider.includeInLayout = showHistorySlider;
 			
 			if (Weave.properties.enableWindowMenu.value || adminService)
 			{
@@ -985,11 +997,14 @@ package weave.application
 					{
 						for each (tag in hierarchy.descendants("attribute"))
 						{
-							if (!String(tag.@title) && tag.@name)
+							if (!String(tag.@title))
 							{
-								tag.@title = tag.@name;
-								if (String(tag.@year))
-									tag.@title += ' (' + tag.@year + ')';
+								var newTitle:String = String(tag.@csvColumn);
+								if (!newTitle && String(tag.@name) && String(tag.@year))
+									newTitle = String(tag.@name) + ' (' + tag.@year + ')';
+								else if (String(tag.@name))
+									newTitle = String(tag.@name);
+								tag.@title = newTitle || 'untitled';
 							}
 						}
 					}

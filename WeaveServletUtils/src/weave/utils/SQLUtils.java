@@ -263,7 +263,6 @@ public class SQLUtils
 	
 	/**
 	 * This function returns a read-only connection that can be reused.  The connection should not be closed.
-	 * @param driver An SQL driver to use.
 	 * @param connectString The connect string used to create the Connection.
 	 * @return A static read-only Connection.
 	 */
@@ -303,7 +302,6 @@ public class SQLUtils
 	}
 	
 	/**
-	 * @param driver The JDBC driver to use.
 	 * @param connectString The connect string to use.
 	 * @return A new SQL connection using the specified driver & connect string 
 	 */
@@ -332,6 +330,32 @@ public class SQLUtils
 			throw new RemoteException("Failed to load driver: \"" + driver + "\"", ex);
 		}
 		return conn;
+	}
+	
+	/**
+	 * @param colName
+	 * @return colName with special characters replaced and truncated to 64 characters.
+	 */
+	public static String fixColumnName(String colName)
+	{
+		// if the column name has "/", "\", ".", "<", ">".
+		colName = colName.replace("/", "");
+		colName = colName.replace("\\", "");
+		colName = colName.replace(".", "");
+		colName = colName.replace("<", "less than");
+		colName = colName.replace(">", "more than");
+		// if the length of the column name is longer than the 64-character limit
+		int maxColNameLength = 64 - 4; // leave space for "_123" if there end up being duplicate column names
+		// if name too long, remove spaces
+		if (colName.length() > maxColNameLength)
+			colName = colName.replace(" ", "");
+		// if still too long, truncate
+		if (colName.length() > maxColNameLength)
+		{
+			int half = maxColNameLength / 2 - 1;
+			colName = colName.substring(0, half) + "_" + colName.substring(colName.length() - half);
+		}
+		return colName;
 	}
 
 	/**
@@ -588,12 +612,9 @@ public class SQLUtils
 	}
 	
 	/**
-	 * @param conn An existing SQL Connection
-	 * @param fromSchema The schema containing the table to perform the SELECT statement on.
-	 * @param fromTable The table to perform the SELECT statement on.
-	 * @param whereParams A map of column names to String values used to construct a WHERE clause.
-	 * @param valueType Either String.class or Object.class to denote the VALUE_TYPE class.
-	 * @return The resulting rows returned by the query.
+	 * @param rs The ResultSet returned from a SQL query.
+	 * @param valueType The Class used for casting values in the ResultSet.
+	 * @return A list of field-value pairs containing the record data.
 	 * @throws SQLException If the query fails.
 	 */
 	@SuppressWarnings("unchecked")
@@ -631,9 +652,9 @@ public class SQLUtils
 	 * @param selectColumns The list of column names, or null for all columns 
 	 * @param fromSchema The schema containing the table to perform the SELECT statement on.
 	 * @param fromTable The table to perform the SELECT statement on.
-	 * @param whereParams A map of column names to String values used to construct a WHERE clause.
-	 * @param valueType Either String.class or Object.class to denote the VALUE_TYPE class.
+	 * @param where Used to construct the WHERE clause
 	 * @param orderBy The field to order by, or null for no specific order.
+	 * @param valueType Either String.class or Object.class to denote the VALUE_TYPE class.
 	 * @return The resulting rows returned by the query.
 	 * @throws SQLException If the query fails.
 	 */
@@ -930,7 +951,7 @@ public class SQLUtils
 	
 	/**
 	 * @param conn An existing SQL Connection
-	 * @param SchemaArg The value to be used as the Schema name
+	 * @param schema The value to be used as the Schema name
 	 * @throws SQLException If the query fails.
 	 */
 	public static void createSchema(Connection conn, String schema)
@@ -957,10 +978,11 @@ public class SQLUtils
 	}
 	/**
 	 * @param conn An existing SQL Connection
-	 * @param SchemaName A schema name accessible through the given connection
+	 * @param schemaName A schema name accessible through the given connection
 	 * @param tableName The value to be used as the table name
 	 * @param columnNames The values to be used as the column names
-	 * @param columnTypes The SQL types to use when creating the ctable
+	 * @param columnTypes The SQL types to use when creating the table
+	 * @param primaryKeyColumns The list of columns to be used for primary keys 
 	 * @throws SQLException If the query fails.
 	 */
 	public static void createTable(
@@ -1425,7 +1447,7 @@ public class SQLUtils
 	
 	/**
 	 * @param conn An existing SQL Connection
-	 * @param SchemaName A schema name accessible through the given connection
+	 * @param schemaName A schema name accessible through the given connection
 	 * @param tableName The name of an existing table
 	 * @param columnNames The names of the columns to use
 	 * @throws SQLException If the query fails.
@@ -1436,9 +1458,8 @@ public class SQLUtils
     }
 	/**
 	 * @param conn An existing SQL Connection
-	 * @param SchemaName A schema name accessible through the given connection
+	 * @param schemaName A schema name accessible through the given connection
 	 * @param tableName The name of an existing table
-	 * @param indexName The name to use for the new index.
 	 * @param columnNames The names of the columns to use.
 	 * @param columnLengths The lengths to use as indices, may be null.
 	 * @throws SQLException If the query fails.
@@ -1482,7 +1503,7 @@ public class SQLUtils
 	
 	/**
 	 * @param conn An existing SQL Connection
-	 * @param SchemaName A schema name accessible through the given connection
+	 * @param schemaName A schema name accessible through the given connection
 	 * @param tableName The name of an existing table
 	 * @param columnName The name of the column to create
 	 * @param columnType An SQL type to use when creating the column
@@ -1589,7 +1610,7 @@ public class SQLUtils
 	 * @param conn An existing SQL Connection
 	 * @param schemaName A schema name accessible through the given connection
 	 * @param tableName A table name existing in the given schema
-	 * @param records The records to be inserted into the table
+	 * @param record The record to be inserted into the table
 	 * @return The number of rows inserted.
 	 * @throws SQLException If the query fails.
 	 */
@@ -1714,8 +1735,7 @@ public class SQLUtils
 	 * @param conn An existing SQL Connection
 	 * @param schemaName A schema name accessible through the given connection
 	 * @param tableName A table name existing in the given schema
-	 * @param whereParams The set of key-value pairs that will be used in the WHERE clause of the query
-     * @param whereConjunctive Use CNF instead of DNF for the where parameters.
+	 * @param where The conditions to be used in the WHERE clause of the query
 	 * @return The number of rows that were deleted.
 	 * @throws SQLException If the query fails.
 	 */

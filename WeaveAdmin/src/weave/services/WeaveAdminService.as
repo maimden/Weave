@@ -19,6 +19,8 @@
 
 package weave.services
 {
+	import avmplus.DescribeType;
+	
 	import flash.events.Event;
 	import flash.events.IOErrorEvent;
 	import flash.events.ProgressEvent;
@@ -37,8 +39,8 @@ package weave.services
 	import mx.utils.ObjectUtil;
 	import mx.utils.StringUtil;
 	
-	import avmplus.DescribeType;
-	
+	import weave.api.core.ILinkableObject;
+	import weave.api.registerLinkableChild;
 	import weave.compiler.StandardLib;
 	import weave.core.CallbackCollection;
 	import weave.services.beans.ConnectionInfo;
@@ -51,7 +53,7 @@ package weave.services
 	 * @see WeaveServices/src/weave/servlets/AdminService.java
 	 * @see WeaveServices/src/weave/servlets/DataService.java
 	 */	
-	public class WeaveAdminService
+	public class WeaveAdminService implements ILinkableObject
 	{
 		public static const messageLog:Array = new Array();
 		public static const messageLogCallbacks:CallbackCollection = new CallbackCollection();
@@ -76,16 +78,14 @@ package weave.services
 			messageLogCallbacks.triggerCallbacks();
 		}
 		
-        private var admin_url:String;
 		/**
 		 * @param url The URL pointing to where a WeaveServices.war has been deployed.  Example: http://example.com/WeaveServices
 		 */		
 		public function WeaveAdminService(url:String)
 		{
-            admin_url = url + "/AdminService";
-			adminService = new AMF3Servlet(admin_url);
-			dataService = new AMF3Servlet(url + "/DataService");
-			queue = new AsyncInvocationQueue(true);
+			adminService = registerLinkableChild(this, new AMF3Servlet(url + "/AdminService"));
+			dataService = registerLinkableChild(this, new AMF3Servlet(url + "/DataService"));
+			queue = registerLinkableChild(this, new AsyncInvocationQueue(true));
 			
 			var info:* = describeTypeJSON(this, DescribeType.METHOD_FLAGS);
 			for each (var item:Object in info.traits.methods)
@@ -273,10 +273,10 @@ package weave.services
 		
 		private function initializeAdminService():void
 		{
-            var req:URLRequest = new URLRequest(admin_url);
+            var req:URLRequest = new URLRequest(adminService.servletURL);
             req.data = new URLVariables();
             req.method = URLRequestMethod.GET;
-            req.data["methodName"] = "initializeAdminService";
+            req.data["method"] = "initializeAdminService";
             var loader:URLStream = new URLStream();
             loader.addEventListener(ProgressEvent.PROGRESS, progressHandler);
             loader.addEventListener(Event.COMPLETE, initializeAdminServiceComplete);
@@ -415,9 +415,9 @@ package weave.services
 		{
 			return invokeAdminWithLogin(getEntitiesById, arguments);
 		}
-		public function getDataTableList():AsyncToken
+		public function getEntityHierarchyInfo(entityType:int):AsyncToken
 		{
-			return invokeAdminWithLogin(getDataTableList, arguments);
+			return invokeAdminWithLogin(getEntityHierarchyInfo, arguments);
 		}
 		
 		///////////////////////
@@ -455,7 +455,7 @@ package weave.services
 				var chunk:ByteArray = new ByteArray();
 				content.readBytes(chunk, 0, Math.min(content.bytesAvailable, chunkSize));
 				
-				token = invokeAdmin(uploadFile, [fileName, chunk, append], true); // queued
+				token = invokeAdminWithLogin(uploadFile, [fileName, chunk, append], true); // queued -- important!
 				append = true;
 			}
 			while (content.bytesAvailable > 0);

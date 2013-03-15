@@ -48,9 +48,9 @@ import weave.config.ConnectionConfig.ConnectionInfo;
 import weave.config.DataConfig;
 import weave.config.DataConfig.DataEntity;
 import weave.config.DataConfig.DataEntityMetadata;
-import weave.config.DataConfig.DataEntityTableInfo;
 import weave.config.DataConfig.DataEntityWithChildren;
 import weave.config.DataConfig.DataType;
+import weave.config.DataConfig.EntityHierarchyInfo;
 import weave.config.DataConfig.PrivateMetadata;
 import weave.config.DataConfig.PublicMetadata;
 import weave.config.WeaveContextParams;
@@ -149,9 +149,9 @@ public class DataService extends GenericServlet
 	////////////////////
 	// DataEntity info
 	
-	public DataEntityTableInfo[] getDataTableList() throws RemoteException
+	public EntityHierarchyInfo[] getDataTableList() throws RemoteException
 	{
-		return getDataConfig().getDataTableList();
+		return getDataConfig().getEntityHierarchyInfo(DataEntity.TYPE_DATATABLE);
 	}
 
 	public int[] getEntityChildIds(int parentId) throws RemoteException
@@ -182,6 +182,20 @@ public class DataService extends GenericServlet
 			
 			// prevent user from receiving private metadata
 			result[i].privateMetadata = Collections.emptyMap();
+		}
+		return result;
+	}
+	
+	public Collection<Integer> getParents(int childId) throws RemoteException
+	{
+		Collection<Integer> result = null;
+		try
+		{
+			DataConfig config = getDataConfig();
+			result = config.getParentIds(childId);
+		}catch (Exception e)
+		{
+			e.printStackTrace();
 		}
 		return result;
 	}
@@ -557,7 +571,7 @@ public class DataService extends GenericServlet
 	// backwards compatibility
 	
 	/**
-	 * @param publicMetadata The metadata query.
+	 * @param metadata The metadata query.
 	 * @return The id of the matching column.
 	 * @throws RemoteException Thrown if the metadata query does not match exactly one column.
 	 */
@@ -565,16 +579,53 @@ public class DataService extends GenericServlet
 	public AttributeColumnData getColumnFromMetadata(Map<String, String> metadata)
 		throws RemoteException
 	{
-		DataEntityMetadata params = new DataEntityMetadata();
-		params.publicMetadata = metadata;
+		DataEntityMetadata query = new DataEntityMetadata();
+		query.publicMetadata = metadata;
 		
 		// exclude these parameters from the query
 		String minStr = metadata.remove(PublicMetadata.MIN);
 		String maxStr = metadata.remove(PublicMetadata.MAX);
 		String paramsStr = metadata.remove(PrivateMetadata.SQLPARAMS);
 		
-		Collection<Integer> ids = getDataConfig().getEntityIdsByMetadata(params, DataEntity.TYPE_COLUMN);
+		DataConfig dataConfig = getDataConfig();
 		
+		Collection<Integer> ids = dataConfig.getEntityIdsByMetadata(query, DataEntity.TYPE_COLUMN);
+		
+		// attempt recovery for backwards compatibility
+		if (ids.size() == 0)
+		{
+			final String DATATABLE = "dataTable";
+			final String NAME = "name";
+			String dataType = metadata.get(PublicMetadata.DATATYPE);
+			if (metadata.containsKey(DATATABLE) && metadata.containsKey(NAME))
+			{
+				// try to find columns sqlTable==dataTable and sqlColumn=name
+				DataEntityMetadata sqlInfoQuery = new DataEntityMetadata();
+				String sqlTable = metadata.get(DATATABLE);
+				String sqlColumn = SQLUtils.fixColumnName(metadata.get(NAME));
+				for (int i = 0; i < 2; i++)
+				{
+					if (i == 1)
+						sqlTable = sqlTable.toLowerCase();
+					sqlInfoQuery.setPrivateMetadata(
+						PrivateMetadata.SQLTABLE, sqlTable,
+						PrivateMetadata.SQLCOLUMN, sqlColumn
+					);
+					ids = dataConfig.getEntityIdsByMetadata(sqlInfoQuery, DataEntity.TYPE_COLUMN);
+					if (ids.size() > 0)
+						break;
+				}
+			}
+			else if (metadata.containsKey(NAME) && dataType != null && dataType.equals(DataType.GEOMETRY))
+			{
+				metadata.put(PublicMetadata.TITLE, metadata.remove(NAME));
+				ids = dataConfig.getEntityIdsByMetadata(query, DataEntity.TYPE_COLUMN);
+			}
+			if (ids.size() == 0)
+				throw new RemoteException("No column matches metadata query: " + metadata);
+		}
+		
+		// warning if more than one column
 		if (ids.size() > 1)
 		{
 			String message = String.format(
@@ -586,18 +637,13 @@ public class DataService extends GenericServlet
 			//throw new RemoteException(message);
 		}
 		
+		// return first column
 		List<Integer> sortedIds = new ArrayList<Integer>(ids);
 		Collections.sort(sortedIds);
-		for (int id : sortedIds)
-		{
-			double min = (Double)cast(minStr, double.class);
-			double max = (Double)cast(maxStr, double.class);
-			String[] sqlParams = CSVParser.defaultParser.parseCSVRow(paramsStr, true);
-			
-			// return first column
-			return getColumn(id, min, max, sqlParams);
-		}
-		
-		throw new RemoteException("No column matches metadata query: " + metadata);
+		int id = sortedIds.get(0);
+		double min = (Double)cast(minStr, double.class);
+		double max = (Double)cast(maxStr, double.class);
+		String[] sqlParams = CSVParser.defaultParser.parseCSVRow(paramsStr, true);
+		return getColumn(id, min, max, sqlParams);
 	}
 }

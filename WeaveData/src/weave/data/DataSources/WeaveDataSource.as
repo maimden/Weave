@@ -125,13 +125,16 @@ package weave.data.DataSources
 				dataType: _convertOldDataType,
 				projectionSRS: ColumnMetadata.PROJECTION
 			});
-			for each (var node:XML in root.descendants())
+			for each (var tag:XML in root.descendants())
 			{
-				if (!String(node.@title))
+				if (!String(tag.@title))
 				{
-					node.@title = node.@name;
-					if (String(node.@year))
-						node.@title += ' (' + node.@year + ')';
+					var newTitle:String;
+					if (String(tag.@name) && String(tag.@year))
+						newTitle = String(tag.@name) + ' (' + tag.@year + ')';
+					else if (String(tag.@name))
+						newTitle = String(tag.@name);
+					tag.@title = newTitle || 'untitled';
 				}
 			}
 		}
@@ -499,7 +502,7 @@ package weave.data.DataSources
 					if (metadataValue)
 						hierarchyNode['@' + metadataName] = metadataValue;
 				}
-				hierarchyNode['@id'] = result.id;
+				hierarchyNode['@'+ENTITY_ID] = result.id;
 				
 				// special case for geometry column
 				var dataType:String = ColumnUtils.getDataType(proxyColumn);
