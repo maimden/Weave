@@ -1100,11 +1100,20 @@ package weave.compiler
 				
 				// cut out tokens between brackets
 				var subArray:Array = tokens.splice(open + 1, close - open - 1);
+				
 				if (debug)
 					trace("compiling tokens", leftBracket, subArray.join(' '), rightBracket);
+				
+				if (leftBracket == '{')
+				{
+					compiledToken = compileTokens(subArray, true);
+					tokens.splice(open, 2, compileOperator(';', [compiledToken]));
+					continue;
+				}
+				
 				var separator:String = ',';
-				if (leftBracket == '{' || (leftBracket == '(' && statements.hasOwnProperty(token) && statements[token]))
-					separator = ';';
+				if (leftBracket == '(' && statements.hasOwnProperty(token) && statements[token])
+					separator = ';'; // statement parameters are separated by ';'
 				compiledParams = compileArray(subArray, separator);
 
 				if (leftBracket == '[') // this is either an array or a property access
