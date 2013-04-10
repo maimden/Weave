@@ -73,11 +73,7 @@ public class SQLResult
 			Object[] row = new Object[n];
 			for (int i = 0; i < n; i++)
 			{
-<<<<<<< HEAD
-				if (convertToStrings || (!SQLUtils.sqlTypeIsNumeric(columnTypes[i]) && !SQLUtils.sqlTypeIsGeometry(columnTypes[i])))
-=======
 				if (asString[i])
->>>>>>> refs/remotes/origin/master
 					row[i] = rs.getString(i + 1);
 				else
 					row[i] = rs.getObject(i + 1);

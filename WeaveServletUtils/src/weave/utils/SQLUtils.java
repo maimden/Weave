@@ -592,15 +592,7 @@ public class SQLUtils
 	public static boolean sqlTypeIsGeometry(int sqlType)
 	{
 		// using 1111 as the literal value returned by postgis as a PGGeometry type.
-<<<<<<< HEAD
-		if (sqlType == 1111){
-			return true;
-		}
-		return false;
-		
-=======
 		return sqlType == 1111;
->>>>>>> refs/remotes/origin/master
 	}
 	
 	/**

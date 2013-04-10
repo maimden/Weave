@@ -1,28 +1,3 @@
-<<<<<<< HEAD
-package weave.beans;
-
-
-public class PGGeom {
-	/**
-	 * Bean class intended to store a row of PostGIS geometries. 
-	 */
-
-	public int gid;
-	public int type;
-	public double[] points;
-
-	public PGGeom()
-	{
-	}
-	
-	// convenience constructor. variables are public. 
-	public PGGeom(int numPoints, int type)
-	{
-		this.type = type;
-		this.points = new double[numPoints*2];
-	}
-	
-=======
 /*
     Weave (Web-based Analysis and Visualization Environment)
     Copyright (C) 2008-2011 University of Massachusetts Lowell
@@ -65,5 +40,4 @@ public class PGGeom
 	public PGGeom()
 	{
 	}
->>>>>>> refs/remotes/origin/master
 }

@@ -39,10 +39,7 @@ package weave.data.DataSources
 	import weave.api.data.IQualifiedKey;
 	import weave.api.services.IWeaveGeometryTileService;
 	import weave.core.LinkableString;
-<<<<<<< HEAD
-=======
 	import weave.data.QKeyManager;
->>>>>>> refs/remotes/origin/master
 	import weave.data.AttributeColumns.GeometryColumn;
 	import weave.data.AttributeColumns.NumberColumn;
 	import weave.data.AttributeColumns.ProxyColumn;
@@ -50,19 +47,12 @@ package weave.data.DataSources
 	import weave.data.AttributeColumns.StreamedGeometryColumn;
 	import weave.data.AttributeColumns.StringColumn;
 	import weave.data.ColumnReferences.HierarchyColumnReference;
-<<<<<<< HEAD
-	import weave.data.QKeyManager;
 	import weave.primitives.GeneralizedGeometry;
-	import weave.primitives.GeometryType;
-=======
-	import weave.primitives.GeneralizedGeometry;
->>>>>>> refs/remotes/origin/master
 	import weave.services.WeaveDataServlet;
 	import weave.services.addAsyncResponder;
 	import weave.services.beans.AttributeColumnData;
 	import weave.services.beans.EntityType;
 	import weave.utils.AsyncSort;
-	import weave.utils.BLGTreeUtils;
 	import weave.utils.ColumnUtils;
 	import weave.utils.HierarchyUtils;
 	import weave.utils.VectorUtils;
@@ -566,32 +556,8 @@ package weave.data.DataSources
 						newNumericColumn.setRecords(keysVector, Vector.<Number>(result.data));
 						proxyColumn.setInternalColumn(newNumericColumn);
 					}
-					else if (isGeom)
+					else
 					{
-						// At this point we can assume the Tiled Geometries are not needed. 
-						var newGeometricColumn:GeometryColumn = new GeometryColumn(hierarchyNode);
-
-						// We must copy the Array returned by getQKeys to the keysVector. 
-						VectorUtils.copy(WeaveAPI.QKeyManager.getQKeys(keyType, result.keys), keysVector);
-
-						var numRows:int = result.data.length
-						var geometriesVector:Vector.<GeneralizedGeometry> = new Vector.<GeneralizedGeometry>();
-						for(var i:int = 0; i < numRows; i++)
-						{ 
-							// We have to initialize the GeneralizedGeometry with the correct type.
-							// Here we use the static method in GeometryType to convert the db type to one of our type strings.
-							var geometry:GeneralizedGeometry = new GeneralizedGeometry(
-								GeometryType.getPostGISGeomTypeFromInt(
-									result.data[i].type));
-							
-							geometry.setCoordinates(result.data[i].points, BLGTreeUtils.METHOD_SAMPLE);
-							geometriesVector.push(geometry);
-						}
-						
-						newGeometricColumn.setGeometries(keysVector,geometriesVector);
-						proxyColumn.setInternalColumn(newGeometricColumn);
-					}
-					else{
 						var newStringColumn:StringColumn = new StringColumn(hierarchyNode);
 						newStringColumn.setRecords(keysVector, Vector.<String>(result.data));
 						proxyColumn.setInternalColumn(newStringColumn);
